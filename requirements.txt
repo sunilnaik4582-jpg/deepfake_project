@@ -1,0 +1,6 @@
+librosa
+soundfile
+flask
+tensorflow
+numpy
+opencv-python

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deepfake Shield | Next-Gen AI Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+  <div class="background-animate"></div>
+  <div class="glass-overlay"></div>
+
+  <main class="container">
+    <header class="app-header">
+      <div class="logo">
+        <i class="fa-solid fa-shield-halved"></i>
+        <h1>Deepfake<span>Shield</span></h1>
+      </div>
+      <p class="tagline">Advanced Neural Network Integrity Verification</p>
+    </header>
+
+    <section class="upload-card">
+      <div class="drop-zone" id="dropZone">
+        <div class="icon-container">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+        </div>
+        <h3>Upload Media</h3>
+        <p>Drag & drop Image, Video or Audio</p>
+        <input type="file" id="fileInput" accept="image/*,video/*,audio/*">
+      </div>
+
+      <!-- Status & Results -->
+      <div class="status-container hidden" id="statusContainer">
+        <div class="loader-ring" id="loader"></div>
+        <p id="statusText">Analyzing neural patterns...</p>
+      </div>
+
+      <div id="resultCard" class="result-card hidden">
+        <div class="result-header">
+          <span class="label">Detection Result</span>
+          <span class="timestamp" id="timestamp"></span>
+        </div>
+        <div class="result-body">
+          <h2 id="resultTitle">REAL</h2>
+          <div class="confidence-meter">
+            <div class="meter-bg">
+              <div class="meter-fill" id="confidenceFill"></div>
+            </div>
+            <span id="confidenceValue">98.5% Confidence</span>
+          </div>
+          <p id="resultReason" class="reason-text">No manipulation artifacts detected.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>Powered by <strong>TensorFlow</strong> & <strong>OpenCV</strong> | Local Secure Processing</p>
+    </footer>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const dropZone = document.getElementById("dropZone");
+    const statusContainer = document.getElementById("statusContainer");
+    const resultCard = document.getElementById("resultCard");
+    const loader = document.getElementById("loader");
+    const statusText = document.getElementById("statusText");
+    const confidenceFill = document.getElementById("confidenceFill");
+    const confidenceValue = document.getElementById("confidenceValue");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultReason = document.getElementById("resultReason");
+    const timestamp = document.getElementById("timestamp");
+
+    // Drag & Drop
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      // Reset UI
+      resultCard.classList.add("hidden");
+      statusContainer.classList.remove("hidden");
+      dropZone.classList.add("processing");
+      statusText.innerText = "Analyzing neural patterns...";
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      fetch("/predict", {
+        method: "POST",
+        body: formData
+      })
+        .then(res => {
+          if (!res.ok) {
+            return res.text().then(text => { throw new Error(text || res.statusText) });
+          }
+          return res.json();
+        })
+        .then(data => {
+          // Artificial delay for "scanning" feel if too fast
+          setTimeout(() => {
+            showResult(data);
+          }, 800);
+        })
+        .catch(err => {
+          statusText.innerText = "Error: " + err.message;
+          alert("Upload Failed: " + err.message);
+          console.error(err);
+          // Reset so user can try again
+          setTimeout(() => {
+            statusContainer.classList.add("hidden");
+            dropZone.classList.remove("processing");
+          }, 2000);
+        });
+    }
+
+    function showResult(data) {
+      statusContainer.classList.add("hidden");
+      dropZone.classList.remove("processing");
+      resultCard.classList.remove("hidden");
+
+      const percent = Math.round(data.confidence * 100);
+      const isReal = data.result === "REAL";
+
+      resultTitle.innerText = data.result;
+      resultTitle.className = isReal ? "text-real" : "text-fake";
+
+      resultReason.innerText = data.reason;
+      confidenceFill.style.width = `${percent}%`;
+      confidenceFill.className = `meter-fill ${isReal ? "fill-real" : "fill-fake"}`;
+      confidenceValue.innerText = `${percent}% Confidence`;
+
+      timestamp.innerText = new Date().toLocaleTimeString();
+    }
+  </script>
+
+</body>
+
+</html>
