@@ -29,4 +29,10 @@ Note
 
 Dataset is not included due to large size.
 
-
+Future Improvements
+* Real-Time Detection – Webcam se live prediction
+* Advanced Models – Better accuracy ke liye improved architectures
+* Explainable AI – Heatmaps se result visualization
+* UI Improvement – Better web interface & dashboard
+* API Integration – External use ke liye REST API
+* Deployment – Cloud par host karke real-world use 
