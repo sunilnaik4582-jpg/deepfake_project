@@ -141,14 +141,22 @@
       resultCard.classList.remove("hidden");
 
       const percent = Math.round(data.confidence * 100);
-      const isReal = data.result === "REAL";
+      let colorClass = "text-fake";
+      let fillClass = "fill-fake";
+      if (data.result === "REAL" || data.result === "REAL") {
+        colorClass = "text-real";
+        fillClass = "fill-real";
+      } else if (data.result.includes("AI GENERATED")) {
+        colorClass = "text-aigen";
+        fillClass = "fill-aigen";
+      }
 
       resultTitle.innerText = data.result;
-      resultTitle.className = isReal ? "text-real" : "text-fake";
+      resultTitle.className = colorClass;
 
       resultReason.innerText = data.reason;
       confidenceFill.style.width = `${percent}%`;
-      confidenceFill.className = `meter-fill ${isReal ? "fill-real" : "fill-fake"}`;
+      confidenceFill.className = `meter-fill ${fillClass}`;
       confidenceValue.innerText = `${percent}% Confidence`;
 
       timestamp.innerText = new Date().toLocaleTimeString();

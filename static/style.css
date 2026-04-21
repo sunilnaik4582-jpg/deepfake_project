@@ -238,6 +238,13 @@ body {
   text-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
 }
 
+.text-aigen {
+  background: linear-gradient(135deg, #a855f7, #d946ef);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+}
+
 .confidence-meter {
   margin: 15px 0;
   position: relative;
@@ -263,6 +270,10 @@ body {
 
 .fill-fake {
   background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.fill-aigen {
+  background: linear-gradient(90deg, #a855f7, #c026d3);
 }
 
 #confidenceValue {

@@ -11,8 +11,14 @@ from audio_analyzer import analyze_audio
 # -----------------------------
 app = Flask(__name__, static_folder="static")
 
-# Load trained deepfake model
+# Load trained models
 model = tf.keras.models.load_model("model/deepfake_model_94acc.h5")
+try:
+    ai_model = tf.keras.models.load_model("model/ai_model.h5")
+    print("AI Model loaded successfully.", flush=True)
+except Exception as e:
+    print(f"Warning: Could not load ai_model.h5: {e}", flush=True)
+    ai_model = None
 
 # Set max upload size to 50MB to prevent hangs on large files
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 
@@ -37,10 +43,18 @@ def cnn_score(img_cv):
     img = preprocess_image(img_cv)
     return float(model.predict(img)[0][0])
 
-# def ai_verification_score(img_cv):
-#     img = preprocess_image(img_cv)
-#     # Output: 0=fake(ai), 1=real
-#     return float(ai_model.predict(img)[0][0])
+def ai_verification_score(img_cv):
+    if ai_model is None:
+        return 1.0  # Default to real if model missing
+    
+    # ai_train.py: images were normalized by /255.0 to [0,1]
+    # preprocess_image() returns float32 but NOT /255.0, so we divide here
+    img = preprocess_image(img_cv)
+    img_normalized = img / 255.0
+    
+    raw = float(ai_model.predict(img_normalized, verbose=0)[0][0])
+    print(f"  [AI Model Raw Output]: {raw:.4f}  (>=0.5 means REAL, <0.5 means AI-GENERATED)", flush=True)
+    return raw
 
 # -----------------------------
 # Routes
@@ -128,22 +142,33 @@ def predict():
         })
 
     df_score = cnn_score(img)
-    print(f"MODEL SCORE - Deepfake: {df_score}")
+    ai_score = ai_verification_score(img)
+    print(f"MODEL SCORE - Deepfake: {df_score:.4f}, AI: {ai_score:.4f}")
 
-    # POLICY:
-    # Score >= 0.5 = REAL, Score < 0.5 = FAKE
-    if df_score >= 0.5:
+    # PRIORITY ORDER:
+    # 1. If AI model says it's AI-generated → AI GENERATED
+    # 2. If deepfake model says it's manipulated → DEEPFAKE
+    # 3. Both pass → REAL
+
+    if ai_score < 0.5:
+        return jsonify({
+            "result": "AI GENERATED",
+            "confidence": float(1.0 - ai_score),
+            "reason": f"AI-generated patterns detected (Confidence: {(1.0-ai_score)*100:.1f}%)"
+        })
+    elif df_score < 0.5:
+        return jsonify({
+            "result": "DEEPFAKE",
+            "confidence": float(1.0 - df_score),
+            "reason": f"Face manipulation detected (Confidence: {(1.0-df_score)*100:.1f}%)"
+        })
+    else:
+        auth_score = min(df_score, ai_score)
         return jsonify({
             "result": "REAL",
-            "confidence": df_score,
-            "reason": f"Real image detected (Score: {df_score:.2f})"
+            "confidence": float(auth_score),
+            "reason": f"Real image detected (Authenticity: {auth_score*100:.1f}%)"
         })
-
-    return jsonify({
-        "result": "FAKE",
-        "confidence": df_score,
-        "reason": f"Deepfake / manipulated image detected (Score: {df_score:.2f})"
-    })
 
 # -----------------------------
 # Main
