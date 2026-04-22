@@ -1,38 +1,51 @@
 Deepfake Detection Project
 
-  Overview
+## Overview
 
 This project detects deepfake content using image, video, and audio inputs using machine learning.
 
-Features
+## Project Interface
+
+### 1. Main Interface
+<img src="interface.png" width="100%" alt="Main Interface">
+*The clean and modern upload interface supporting multi-format media analysis.*
+
+### 2. Deepfake Detection Result
+<img src="detection_result.png" width="100%" alt="Detection Result">
+*Detailed analysis report highlighting detection confidence and manipulation type.*
+
+## Features
 
 * Image deepfake detection
 * Video deepfake detection
 * Audio analysis
 * Pre-trained models included
 
-Technologies
+## Technologies
 
-* Python
-* TensorFlow / Keras
-* OpenCV
-* HTML, CSS
+* **Backend:** Python, Flask
+* **AI/ML:** TensorFlow, Keras, OpenCV
+* **Frontend:** HTML5, CSS3 (Modern Dark UI)
 
-How to Run
+## How to Run
 
-```bash
-pip install -r requirements.txt
-python app.py
-```
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Launch Application:**
+   ```bash
+   python app.py
+   ```
+3. **Access UI:** Open `http://127.0.0.1:8080/` in your browser.
 
-Note
+> [!NOTE]
+> Dataset is not included in this repository due to its large size.
 
-Dataset is not included due to large size.
+## Future Improvements
 
-Future Improvements
-* Real-Time Detection – Webcam se live prediction
-* Advanced Models – Better accuracy ke liye improved architectures
-* Explainable AI – Heatmaps se result visualization
-* UI Improvement – Better web interface & dashboard
-* API Integration – External use ke liye REST API
-* Deployment – Cloud par host karke real-world use 
+* **Real-Time Detection:** Live prediction using webcam feed.
+* **Advanced Models:** Implementation of state-of-the-art architectures for higher accuracy.
+* **Explainable AI:** Heatmap generation for result visualization.
+* **API Integration:** RESTful API for third-party service integration.
+* **Deployment:** Cloud hosting for global accessibility.
