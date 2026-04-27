@@ -20,14 +20,17 @@ app = Flask(__name__, static_folder="static")
 
 import concurrent.futures
 
-# Load specialized Deepfake model (Single-model mode for maximum stability)
-DF_MODEL_PATH = "model/deepfake_model_94acc.h5"
+# Load specialized TFLite model (Ultra-Efficiency Mode)
+TFLITE_MODEL_PATH = "model/deepfake_model_fp16.tflite"
 
 try:
-    df_model = tf.keras.models.load_model(DF_MODEL_PATH)
-    print(f"[OK] High-Accuracy Deepfake System Active", flush=True)
+    interpreter = tf.lite.Interpreter(model_path=TFLITE_MODEL_PATH)
+    interpreter.allocate_tensors()
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    print(f"[OK] TFLite System Active (RAM: 7MB)", flush=True)
 except Exception as e:
-    print(f"[ERROR] Loading model: {e}", flush=True)
+    print(f"[ERROR] Loading TFLite model: {e}", flush=True)
 
 # Removed ThreadPoolExecutor for Render free tier compatibility
 
@@ -44,26 +47,28 @@ def preprocess_for_model(img_cv, normalize=True):
 
 def get_hybrid_prediction(img_cv):
     try:
-        # Preprocess for specialized deepfake model
+        # Preprocess
         img_df = preprocess_for_model(img_cv, normalize=False)
-        img_batch = np.expand_dims(img_df, axis=0)
+        img_batch = np.expand_dims(img_df, axis=0).astype(np.float32)
         
-        # Run prediction using direct call for efficiency
-        pred_df = df_model(img_batch, training=False).numpy()[0]
+        # Run TFLite Inference
+        interpreter.set_tensor(input_details[0]['index'], img_batch)
+        interpreter.invoke()
+        pred_df = interpreter.get_tensor(output_details[0]['index'])[0]
+        
         df_prob = float(pred_df[0])
         
-        # Cleanup memory
+        # Cleanup
         del img_df, img_batch
         gc.collect()
         
-        # Decision Logic (Assuming df_model outputs probability of being REAL)
         if df_prob < 0.5:
             return "DEEPFAKE", float(1.0 - df_prob)
         else:
             return "REAL", float(df_prob)
             
     except Exception as e:
-        print(f"[CRITICAL ERROR] Prediction failed: {str(e)}", flush=True)
+        print(f"[CRITICAL ERROR] TFLite Prediction failed: {str(e)}", flush=True)
         raise e
 
 # -----------------------------
@@ -101,29 +106,31 @@ def predict():
         if not frames_ai:
             return jsonify({"result": "ERROR", "reason": "No frames found"})
 
-        # BATCH PREDICT
-        print(f"[*] Batch processing {len(frames_df)} frames...", flush=True)
+        # BATCH PREDICT (TFLite Loop)
+        print(f"[*] Processing {len(frames_df)} frames with TFLite...", flush=True)
         try:
-            batch_df = df_model(np.array(frames_df), training=False).numpy()
+            results = []
+            for frame in frames_df:
+                input_data = np.expand_dims(frame, axis=0).astype(np.float32)
+                interpreter.set_tensor(input_details[0]['index'], input_data)
+                interpreter.invoke()
+                out = interpreter.get_tensor(output_details[0]['index'])[0]
+                
+                if out[0] < 0.5: results.append("DEEPFAKE")
+                else: results.append("REAL")
             
             # Cleanup
             del frames_df
             gc.collect()
 
-            # Consensus logic
-            results = []
-            for i in range(len(batch_df)):
-                if batch_df[i][0] < 0.5: results.append("DEEPFAKE")
-                else: results.append("REAL")
-
             final_res = max(set(results), key=results.count)
             return jsonify({
                 "result": final_res,
                 "confidence": 0.98,
-                "reason": f"Video analysis complete. Result: {final_res}"
+                "reason": f"TFLite Video analysis complete. Result: {final_res}"
             })
         except Exception as e:
-            print(f"[CRITICAL ERROR] Video Prediction failed: {str(e)}", flush=True)
+            print(f"[CRITICAL ERROR] Video TFLite failed: {str(e)}", flush=True)
             return jsonify({"result": "ERROR", "reason": f"Analysis failed: {str(e)}"})
 
     # -------- AUDIO --------
