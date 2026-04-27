@@ -20,17 +20,14 @@ app = Flask(__name__, static_folder="static")
 
 import concurrent.futures
 
-# Load specialized models (Hybrid System - Restored for accuracy)
+# Load specialized Deepfake model (Single-model mode for maximum stability)
 DF_MODEL_PATH = "model/deepfake_model_94acc.h5"
-AI_MODEL_PATH = "model/unified_model.h5"
 
 try:
-    # We load both but will use them sequentially to save RAM
     df_model = tf.keras.models.load_model(DF_MODEL_PATH)
-    ai_model = tf.keras.models.load_model(AI_MODEL_PATH)
-    print(f"[OK] High-Accuracy Hybrid System Active", flush=True)
+    print(f"[OK] High-Accuracy Deepfake System Active", flush=True)
 except Exception as e:
-    print(f"[ERROR] Loading models: {e}", flush=True)
+    print(f"[ERROR] Loading model: {e}", flush=True)
 
 # Removed ThreadPoolExecutor for Render free tier compatibility
 
@@ -47,35 +44,24 @@ def preprocess_for_model(img_cv, normalize=True):
 
 def get_hybrid_prediction(img_cv):
     try:
-        # 1. Check with Unified Model (Best for AI-Generated Images)
-        img_ai = preprocess_for_model(img_cv, normalize=True)
-        preds_ai = ai_model(np.expand_dims(img_ai, axis=0), training=False).numpy()[0]
-        
-        # If Unified model is very sure it's AI, we return immediately
-        if np.argmax(preds_ai) == 0 and preds_ai[0] > 0.6:
-            return "AI GENERATED", float(preds_ai[0])
-            
-        # 2. Check with Specialized Deepfake Model (Best for Face Swaps/Deepfakes)
+        # Preprocess for specialized deepfake model
         img_df = preprocess_for_model(img_cv, normalize=False)
-        pred_df = df_model(np.expand_dims(img_df, axis=0), training=False).numpy()[0]
-        df_prob = float(pred_df[0]) # Assuming df_model outputs prob of REAL
+        img_batch = np.expand_dims(img_df, axis=0)
+        
+        # Run prediction using direct call for efficiency
+        pred_df = df_model(img_batch, training=False).numpy()[0]
+        df_prob = float(pred_df[0])
         
         # Cleanup memory
-        del img_ai, img_df
+        del img_df, img_batch
         gc.collect()
         
-        # Decision Logic: Combine results
-        # If specialized model says Deepfake (< 0.5 probability of REAL)
+        # Decision Logic (Assuming df_model outputs probability of being REAL)
         if df_prob < 0.5:
             return "DEEPFAKE", float(1.0 - df_prob)
-        
-        # Otherwise, if unified model detected AI (even with lower confidence)
-        if np.argmax(preds_ai) == 0:
-            return "AI GENERATED", float(preds_ai[0])
+        else:
+            return "REAL", float(df_prob)
             
-        # Default to Real
-        return "REAL", float(df_prob)
-        
     except Exception as e:
         print(f"[CRITICAL ERROR] Prediction failed: {str(e)}", flush=True)
         raise e
@@ -100,14 +86,12 @@ def predict():
         file.save(tmp.name)
         cap = cv2.VideoCapture(tmp.name)
         
-        frames_ai = []
         frames_df = []
         frame_idx = 0
         while True:
             ret, frame = cap.read()
             if not ret: break
             if frame_idx % 20 == 0:
-                frames_ai.append(preprocess_for_model(frame, normalize=True))
                 frames_df.append(preprocess_for_model(frame, normalize=False))
             frame_idx += 1
         cap.release()
@@ -118,27 +102,25 @@ def predict():
             return jsonify({"result": "ERROR", "reason": "No frames found"})
 
         # BATCH PREDICT
-        print(f"[*] Batch processing {len(frames_ai)} frames...", flush=True)
+        print(f"[*] Batch processing {len(frames_df)} frames...", flush=True)
         try:
-            batch_ai = ai_model(np.array(frames_ai), training=False).numpy()
             batch_df = df_model(np.array(frames_df), training=False).numpy()
             
             # Cleanup
-            del frames_ai, frames_df
+            del frames_df
             gc.collect()
 
             # Consensus logic
             results = []
-            for i in range(len(batch_ai)):
-                if np.argmax(batch_ai[i]) == 0: results.append("AI GENERATED")
-                elif batch_df[i][0] < 0.5: results.append("DEEPFAKE")
+            for i in range(len(batch_df)):
+                if batch_df[i][0] < 0.5: results.append("DEEPFAKE")
                 else: results.append("REAL")
 
             final_res = max(set(results), key=results.count)
             return jsonify({
                 "result": final_res,
                 "confidence": 0.98,
-                "reason": f"Hybrid Video analysis complete. Result: {final_res}"
+                "reason": f"Video analysis complete. Result: {final_res}"
             })
         except Exception as e:
             print(f"[CRITICAL ERROR] Video Prediction failed: {str(e)}", flush=True)

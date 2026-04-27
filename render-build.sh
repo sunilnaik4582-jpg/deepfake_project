@@ -21,10 +21,4 @@ if [ ! -f "model/deepfake_model_94acc.h5" ]; then
     gdown 1ny15DmXESVvnmpas2nQdvrkfDUcZUv7j -O model/deepfake_model_94acc.h5
 fi
 
-# Download unified_model.h5
-if [ ! -f "model/unified_model.h5" ]; then
-    echo "Downloading unified_model.h5..."
-    gdown 17sx59zStW_yzMfKrjbsvCuyhLVKsWzLb -O model/unified_model.h5
-fi
-
 echo "Build complete."
