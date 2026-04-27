@@ -19,14 +19,12 @@ app = Flask(__name__, static_folder="static")
 
 import concurrent.futures
 
-# Load specialized models
-DF_MODEL_PATH = "model/deepfake_model_94acc.h5"
+# Load unified model (Single model to save memory on Render Free Tier)
 AI_MODEL_PATH = "model/unified_model.h5"
 
 try:
-    df_model = tf.keras.models.load_model(DF_MODEL_PATH)
     ai_model = tf.keras.models.load_model(AI_MODEL_PATH)
-    print(f"[OK] High-Speed Hybrid System Active", flush=True)
+    print(f"[OK] Unified System Active (Memory Optimized)", flush=True)
 except Exception as e:
     print(f"[ERROR] Loading models: {e}", flush=True)
 
@@ -46,22 +44,19 @@ def preprocess_for_model(img_cv, normalize=True):
 def get_hybrid_prediction(img_cv):
     # Prepare inputs
     img_ai = preprocess_for_model(img_cv, normalize=True)
-    img_df = preprocess_for_model(img_cv, normalize=False)
     
-    # Run in parallel
-    def run_ai(): return ai_model.predict(np.expand_dims(img_ai, axis=0), verbose=0)[0]
-    def run_df(): return df_model.predict(np.expand_dims(img_df, axis=0), verbose=0)[0]
+    # Run prediction
+    preds = ai_model.predict(np.expand_dims(img_ai, axis=0), verbose=0)[0]
+    class_idx = np.argmax(preds)
+    conf = float(preds[class_idx])
     
-    ai_preds = run_ai()
-    df_prob = float(run_df()[0])
-    
-    # Decision Logic
-    if ai_preds[0] > 0.5:
-        return "AI GENERATED", float(ai_preds[0])
-    elif df_prob < 0.5:
-        return "DEEPFAKE", float(1.0 - df_prob)
+    # Decision Logic (0: AI, 1: Deepfake, 2: Real)
+    if class_idx == 0:
+        return "AI GENERATED", conf
+    elif class_idx == 1:
+        return "DEEPFAKE", conf
     else:
-        return "REAL", float(df_prob)
+        return "REAL", conf
 
 # -----------------------------
 # Routes
@@ -84,14 +79,12 @@ def predict():
         cap = cv2.VideoCapture(tmp.name)
         
         frames_ai = []
-        frames_df = []
         frame_idx = 0
         while True:
             ret, frame = cap.read()
             if not ret: break
             if frame_idx % 20 == 0: # Increased step for speed
                 frames_ai.append(preprocess_for_model(frame, normalize=True))
-                frames_df.append(preprocess_for_model(frame, normalize=False))
             frame_idx += 1
         cap.release()
         try: os.remove(tmp.name)
@@ -103,13 +96,13 @@ def predict():
         # BATCH PREDICT (Much faster than loop)
         print(f"[*] Batch processing {len(frames_ai)} frames...", flush=True)
         batch_ai = ai_model.predict(np.array(frames_ai), batch_size=8, verbose=0)
-        batch_df = df_model.predict(np.array(frames_df), batch_size=8, verbose=0)
 
         # Consensus logic
         results = []
         for i in range(len(batch_ai)):
-            if batch_ai[i][0] > 0.5: results.append("AI GENERATED")
-            elif batch_df[i][0] < 0.5: results.append("DEEPFAKE")
+            class_idx = np.argmax(batch_ai[i])
+            if class_idx == 0: results.append("AI GENERATED")
+            elif class_idx == 1: results.append("DEEPFAKE")
             else: results.append("REAL")
 
         final_res = max(set(results), key=results.count)
