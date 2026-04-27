@@ -1,6 +1,7 @@
 import cv2
 cv2.setNumThreads(1)
 import os
+import gc
 import tempfile
 import numpy as np
 import tensorflow as tf
@@ -47,6 +48,11 @@ def get_hybrid_prediction(img_cv):
     
     # Run prediction
     preds = ai_model.predict(np.expand_dims(img_ai, axis=0), verbose=0)[0]
+    
+    # Cleanup intermediate arrays to free RAM
+    del img_ai
+    gc.collect()
+    
     class_idx = np.argmax(preds)
     conf = float(preds[class_idx])
     
