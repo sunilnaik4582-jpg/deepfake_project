@@ -43,26 +43,32 @@ def preprocess_for_model(img_cv, normalize=True):
     return img
 
 def get_hybrid_prediction(img_cv):
-    # Prepare inputs
-    img_ai = preprocess_for_model(img_cv, normalize=True)
-    
-    # Run prediction
-    preds = ai_model.predict(np.expand_dims(img_ai, axis=0), verbose=0)[0]
-    
-    # Cleanup intermediate arrays to free RAM
-    del img_ai
-    gc.collect()
-    
-    class_idx = np.argmax(preds)
-    conf = float(preds[class_idx])
-    
-    # Decision Logic (0: AI, 1: Deepfake, 2: Real)
-    if class_idx == 0:
-        return "AI GENERATED", conf
-    elif class_idx == 1:
-        return "DEEPFAKE", conf
-    else:
-        return "REAL", conf
+    try:
+        # Prepare inputs
+        img_ai = preprocess_for_model(img_cv, normalize=True)
+        img_batch = np.expand_dims(img_ai, axis=0)
+        
+        # Run prediction using direct call (more memory efficient than .predict for single images)
+        preds = ai_model(img_batch, training=False).numpy()[0]
+        
+        # Explicitly delete temporary arrays
+        del img_ai
+        del img_batch
+        gc.collect()
+        
+        class_idx = np.argmax(preds)
+        conf = float(preds[class_idx])
+        
+        # Decision Logic (0: AI, 1: Deepfake, 2: Real)
+        if class_idx == 0:
+            return "AI GENERATED", conf
+        elif class_idx == 1:
+            return "DEEPFAKE", conf
+        else:
+            return "REAL", conf
+    except Exception as e:
+        print(f"[CRITICAL ERROR] Prediction failed: {str(e)}", flush=True)
+        raise e
 
 # -----------------------------
 # Routes
@@ -101,22 +107,32 @@ def predict():
 
         # BATCH PREDICT (Much faster than loop)
         print(f"[*] Batch processing {len(frames_ai)} frames...", flush=True)
-        batch_ai = ai_model.predict(np.array(frames_ai), batch_size=8, verbose=0)
+        try:
+            batch_tensor = np.array(frames_ai)
+            batch_ai = ai_model(batch_tensor, training=False).numpy()
+            
+            # Cleanup
+            del frames_ai
+            del batch_tensor
+            gc.collect()
 
-        # Consensus logic
-        results = []
-        for i in range(len(batch_ai)):
-            class_idx = np.argmax(batch_ai[i])
-            if class_idx == 0: results.append("AI GENERATED")
-            elif class_idx == 1: results.append("DEEPFAKE")
-            else: results.append("REAL")
+            # Consensus logic
+            results = []
+            for i in range(len(batch_ai)):
+                class_idx = np.argmax(batch_ai[i])
+                if class_idx == 0: results.append("AI GENERATED")
+                elif class_idx == 1: results.append("DEEPFAKE")
+                else: results.append("REAL")
 
-        final_res = max(set(results), key=results.count)
-        return jsonify({
-            "result": final_res,
-            "confidence": 0.98,
-            "reason": f"Video analysis complete (Batch Mode). Result: {final_res}"
-        })
+            final_res = max(set(results), key=results.count)
+            return jsonify({
+                "result": final_res,
+                "confidence": 0.98,
+                "reason": f"Video analysis complete (Batch Mode). Result: {final_res}"
+            })
+        except Exception as e:
+            print(f"[CRITICAL ERROR] Video Prediction failed: {str(e)}", flush=True)
+            return jsonify({"result": "ERROR", "reason": f"Analysis failed: {str(e)}"})
 
     # -------- AUDIO --------
     if file.mimetype.startswith("audio"):

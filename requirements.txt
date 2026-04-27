@@ -1,7 +1,7 @@
 librosa
 soundfile
 flask
-tensorflow
+tensorflow-cpu
 keras==3.13.0
 numpy
 opencv-python-headless
