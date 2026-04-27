@@ -24,8 +24,7 @@ try:
 except Exception as e:
     print(f"[ERROR] Loading models: {e}", flush=True)
 
-# Thread pool for parallel inference
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+# Removed ThreadPoolExecutor for Render free tier compatibility
 
 # -----------------------------
 # Inference Helpers
@@ -47,11 +46,8 @@ def get_hybrid_prediction(img_cv):
     def run_ai(): return ai_model.predict(np.expand_dims(img_ai, axis=0), verbose=0)[0]
     def run_df(): return df_model.predict(np.expand_dims(img_df, axis=0), verbose=0)[0]
     
-    future_ai = executor.submit(run_ai)
-    future_df = executor.submit(run_df)
-    
-    ai_preds = future_ai.result()
-    df_prob = float(future_df.result()[0])
+    ai_preds = run_ai()
+    df_prob = float(run_df()[0])
     
     # Decision Logic
     if ai_preds[0] > 0.5:
