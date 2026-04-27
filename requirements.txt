@@ -1,7 +1,8 @@
 librosa
 soundfile
 flask
-tensorflow==2.20.0
+tensorflow
+keras==3.13.0
 numpy
 opencv-python-headless
 gdown
