@@ -20,17 +20,26 @@ app = Flask(__name__, static_folder="static")
 
 import concurrent.futures
 
-# Load specialized TFLite model (Ultra-Efficiency Mode)
-TFLITE_MODEL_PATH = "model/deepfake_model_fp16.tflite"
+# Load specialized TFLite models (Ultra-Efficiency Hybrid System)
+DF_TFLITE_PATH = "model/deepfake_model_fp16.tflite"
+AI_TFLITE_PATH = "model/unified_model_fp16.tflite"
 
 try:
-    interpreter = tf.lite.Interpreter(model_path=TFLITE_MODEL_PATH)
-    interpreter.allocate_tensors()
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
-    print(f"[OK] TFLite System Active (RAM: 7MB)", flush=True)
+    # 1. Deepfake Model Interpreter
+    df_interp = tf.lite.Interpreter(model_path=DF_TFLITE_PATH)
+    df_interp.allocate_tensors()
+    df_in = df_interp.get_input_details()
+    df_out = df_interp.get_output_details()
+    
+    # 2. AI-Generated Model Interpreter
+    ai_interp = tf.lite.Interpreter(model_path=AI_TFLITE_PATH)
+    ai_interp.allocate_tensors()
+    ai_in = ai_interp.get_input_details()
+    ai_out = ai_interp.get_output_details()
+    
+    print(f"[OK] Hybrid TFLite System Active (RAM optimized)", flush=True)
 except Exception as e:
-    print(f"[ERROR] Loading TFLite model: {e}", flush=True)
+    print(f"[ERROR] Loading TFLite models: {e}", flush=True)
 
 # Removed ThreadPoolExecutor for Render free tier compatibility
 
@@ -47,28 +56,41 @@ def preprocess_for_model(img_cv, normalize=True):
 
 def get_hybrid_prediction(img_cv):
     try:
-        # Preprocess
+        # --- 1. Check with Unified Model (AI Generation Detection) ---
+        img_ai = preprocess_for_model(img_cv, normalize=True)
+        batch_ai = np.expand_dims(img_ai, axis=0).astype(np.float32)
+        
+        ai_interp.set_tensor(ai_in[0]['index'], batch_ai)
+        ai_interp.invoke()
+        preds_ai = ai_interp.get_tensor(ai_out[0]['index'])[0]
+        
+        # If very sure it's AI generated (Class 0), return immediately
+        if np.argmax(preds_ai) == 0 and preds_ai[0] > 0.6:
+            return "AI GENERATED", float(preds_ai[0])
+            
+        # --- 2. Check with Deepfake Model (Face Swap Detection) ---
         img_df = preprocess_for_model(img_cv, normalize=False)
-        img_batch = np.expand_dims(img_df, axis=0).astype(np.float32)
+        batch_df = np.expand_dims(img_df, axis=0).astype(np.float32)
         
-        # Run TFLite Inference
-        interpreter.set_tensor(input_details[0]['index'], img_batch)
-        interpreter.invoke()
-        pred_df = interpreter.get_tensor(output_details[0]['index'])[0]
-        
-        df_prob = float(pred_df[0])
+        df_interp.set_tensor(df_in[0]['index'], batch_df)
+        df_interp.invoke()
+        preds_df = df_interp.get_tensor(df_out[0]['index'])[0]
+        df_prob = float(preds_df[0])
         
         # Cleanup
-        del img_df, img_batch
+        del img_ai, img_df, batch_ai, batch_df
         gc.collect()
         
+        # Decision Logic
         if df_prob < 0.5:
             return "DEEPFAKE", float(1.0 - df_prob)
+        elif np.argmax(preds_ai) == 0:
+            return "AI GENERATED", float(preds_ai[0])
         else:
             return "REAL", float(df_prob)
             
     except Exception as e:
-        print(f"[CRITICAL ERROR] TFLite Prediction failed: {str(e)}", flush=True)
+        print(f"[CRITICAL ERROR] Hybrid TFLite failed: {str(e)}", flush=True)
         raise e
 
 # -----------------------------
@@ -106,31 +128,39 @@ def predict():
         if not frames_ai:
             return jsonify({"result": "ERROR", "reason": "No frames found"})
 
-        # BATCH PREDICT (TFLite Loop)
-        print(f"[*] Processing {len(frames_df)} frames with TFLite...", flush=True)
+        # BATCH PREDICT (Hybrid TFLite Loop)
+        print(f"[*] Processing {len(frames_df)} frames with Hybrid TFLite...", flush=True)
         try:
             results = []
-            for frame in frames_df:
-                input_data = np.expand_dims(frame, axis=0).astype(np.float32)
-                interpreter.set_tensor(input_details[0]['index'], input_data)
-                interpreter.invoke()
-                out = interpreter.get_tensor(output_details[0]['index'])[0]
+            for i in range(len(frames_df)):
+                # Run AI check
+                batch_ai = np.expand_dims(frames_ai[i], axis=0).astype(np.float32)
+                ai_interp.set_tensor(ai_in[0]['index'], batch_ai)
+                ai_interp.invoke()
+                out_ai = ai_interp.get_tensor(ai_out[0]['index'])[0]
                 
-                if out[0] < 0.5: results.append("DEEPFAKE")
+                # Run DF check
+                batch_df = np.expand_dims(frames_df[i], axis=0).astype(np.float32)
+                df_interp.set_tensor(df_in[0]['index'], batch_df)
+                df_interp.invoke()
+                out_df = df_interp.get_tensor(df_out[0]['index'])[0]
+                
+                if np.argmax(out_ai) == 0: results.append("AI GENERATED")
+                elif out_df[0] < 0.5: results.append("DEEPFAKE")
                 else: results.append("REAL")
             
             # Cleanup
-            del frames_df
+            del frames_ai, frames_df
             gc.collect()
 
             final_res = max(set(results), key=results.count)
             return jsonify({
                 "result": final_res,
                 "confidence": 0.98,
-                "reason": f"TFLite Video analysis complete. Result: {final_res}"
+                "reason": f"Hybrid TFLite Video analysis complete. Result: {final_res}"
             })
         except Exception as e:
-            print(f"[CRITICAL ERROR] Video TFLite failed: {str(e)}", flush=True)
+            print(f"[CRITICAL ERROR] Video Hybrid TFLite failed: {str(e)}", flush=True)
             return jsonify({"result": "ERROR", "reason": f"Analysis failed: {str(e)}"})
 
     # -------- AUDIO --------
