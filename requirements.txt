@@ -3,4 +3,7 @@ soundfile
 flask
 tensorflow
 numpy
-opencv-python
+opencv-python-headless
+gdown
+gunicorn
+scikit-learn

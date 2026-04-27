@@ -137,7 +137,8 @@ if __name__ == "__main__":
     print("----------------------------------------------------------")
     print(" PROJECT RUNNING IN HIGH-SPEED HYBRID MODE")
     print("----------------------------------------------------------")
-    app.run(host="0.0.0.0", port=8080, debug=False, threaded=False)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=False)
 
 
 
