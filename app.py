@@ -1,8 +1,14 @@
 import cv2
+cv2.setNumThreads(1)
 import os
 import tempfile
 import numpy as np
 import tensorflow as tf
+
+# Limit TensorFlow memory and CPU usage for Render's 512MB free tier
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+
 from flask import Flask, request, jsonify, send_from_directory
 from audio_analyzer import analyze_audio
 
