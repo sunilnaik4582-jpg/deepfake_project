@@ -32,7 +32,7 @@
           <i class="fa-solid fa-cloud-arrow-up"></i>
         </div>
         <h3>Upload Media</h3>
-        <p>Drag & drop Image, Video or Audio</p>
+        <p>Drag &amp; drop Image, Video or Audio</p>
         <input type="file" id="fileInput" accept="image/*,video/*,audio/*">
       </div>
 
@@ -61,22 +61,22 @@
     </section>
 
     <footer>
-      <p>Powered by <strong>TensorFlow</strong> & <strong>OpenCV</strong> | Local Secure Processing</p>
+      <p>Powered by <strong>TensorFlow</strong> &amp; <strong>OpenCV</strong> | Local Secure Processing</p>
     </footer>
   </main>
 
   <script>
-    const fileInput = document.getElementById("fileInput");
-    const dropZone = document.getElementById("dropZone");
+    const fileInput       = document.getElementById("fileInput");
+    const dropZone        = document.getElementById("dropZone");
     const statusContainer = document.getElementById("statusContainer");
-    const resultCard = document.getElementById("resultCard");
-    const loader = document.getElementById("loader");
-    const statusText = document.getElementById("statusText");
-    const confidenceFill = document.getElementById("confidenceFill");
+    const resultCard      = document.getElementById("resultCard");
+    const loader          = document.getElementById("loader");
+    const statusText      = document.getElementById("statusText");
+    const confidenceFill  = document.getElementById("confidenceFill");
     const confidenceValue = document.getElementById("confidenceValue");
-    const resultTitle = document.getElementById("resultTitle");
-    const resultReason = document.getElementById("resultReason");
-    const timestamp = document.getElementById("timestamp");
+    const resultTitle     = document.getElementById("resultTitle");
+    const resultReason    = document.getElementById("resultReason");
+    const timestamp       = document.getElementById("timestamp");
 
     // Drag & Drop
     dropZone.addEventListener("click", () => fileInput.click());
@@ -118,7 +118,6 @@
           return res.json();
         })
         .then(data => {
-          // Artificial delay for "scanning" feel if too fast
           setTimeout(() => {
             showResult(data);
           }, 800);
@@ -127,7 +126,6 @@
           statusText.innerText = "Error: " + err.message;
           alert("Upload Failed: " + err.message);
           console.error(err);
-          // Reset so user can try again
           setTimeout(() => {
             statusContainer.classList.add("hidden");
             dropZone.classList.remove("processing");

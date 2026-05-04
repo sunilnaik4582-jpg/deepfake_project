@@ -27,13 +27,15 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   position: relative;
+  padding: 20px 16px;
 }
 
 /* Dynamic Background */
 .background-animate {
-  position: absolute;
+  position: fixed;
   top: -50%;
   left: -50%;
   width: 200%;
@@ -55,7 +57,7 @@ body {
 }
 
 .glass-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   backdrop-filter: blur(80px);
   /* Heavy blur for soft ambient light */
@@ -302,4 +304,107 @@ footer {
   color: var(--text-muted);
   font-size: 0.8rem;
   opacity: 0.6;
+}
+
+/* =============================================
+   MOBILE RESPONSIVE
+   ============================================= */
+@media (max-width: 520px) {
+
+  body {
+    align-items: center;
+    padding: 20px 14px;
+  }
+
+  .container {
+    padding: 0;
+  }
+
+  /* Header */
+  .app-header {
+    margin-bottom: 20px;
+  }
+
+  .logo {
+    font-size: 1.45rem;
+    gap: 8px;
+  }
+
+  .logo i {
+    font-size: 1.3rem;
+  }
+
+  .tagline {
+    font-size: 0.75rem;
+  }
+
+  /* Card */
+  .upload-card {
+    padding: 1rem;
+    border-radius: 18px;
+    margin: 0 10px;
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    padding: 22px 12px;
+    border-radius: 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .drop-zone:active {
+    transform: scale(0.98);
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.05);
+  }
+
+  .icon-container {
+    font-size: 2.2rem;
+    margin-bottom: 10px;
+  }
+
+  .drop-zone h3 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+  }
+
+  .drop-zone p {
+    font-size: 0.8rem;
+  }
+
+  /* Loader */
+  .status-container {
+    padding: 20px 0;
+  }
+
+  /* Result */
+  .result-card {
+    margin-top: 16px;
+    padding-top: 16px;
+  }
+
+  .result-body h2 {
+    font-size: 1.9rem;
+    letter-spacing: 2px;
+  }
+
+  .result-header {
+    font-size: 0.72rem;
+  }
+
+  #confidenceValue {
+    font-size: 0.8rem;
+  }
+
+  .reason-text {
+    font-size: 0.82rem;
+    line-height: 1.5;
+    padding: 8px 10px;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 20px;
+    font-size: 0.7rem;
+  }
 }
